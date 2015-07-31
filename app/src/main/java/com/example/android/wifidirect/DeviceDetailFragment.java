@@ -16,6 +16,8 @@
 
 package com.example.android.wifidirect;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -42,6 +44,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.webkit.MimeTypeMap;
+import android.content.ContentResolver;
 
 import com.example.android.wifidirect.DeviceListFragment.DeviceActionListener;
 
@@ -113,6 +117,7 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 						// registered apps
 						Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
 						intent.setType("image/*");
+
 						startActivityForResult(intent, CHOOSE_FILE_RESULT_CODE);
 					}
 				});
@@ -123,9 +128,14 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 	@Override
 	public void onActivityResult(int requestCode, int resultCode, Intent data) {
 
+		if (data == null) return;
+		Log.d("INTENT", data.toString());
+
 		if (device == null) {
 			Log.d("NULLADDR", "NULL");
+			return;
 		}
+
 		String localIP = Utils.getLocalIPAddress();
 		// Trick to find the ip in the file /proc/net/arp
 		Log.d("ADDR", device.toString());
@@ -138,13 +148,32 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 
 		// User has picked an image. Transfer it to group owner i.e peer using
 		// FileTransferService.
+
 		Uri uri = data.getData();
+		/*
+		String[] file = uri.toString().split("/");
+		Log.d("FILEArray", uri.toString());
+
+		String fileName = file[file.length - 1];
+		Log.d("FILEArray", fileName);
+		*/
+		/*
+		String fileType = getMimeType(uri.toString());
+		*/
+
+		ContentResolver cR = getActivity().getContentResolver();
+		MimeTypeMap mime = MimeTypeMap.getSingleton();
+		String fileType = mime.getExtensionFromMimeType(cR.getType(uri));
+
+		Log.d("FILETYPE", fileType + "");
 		TextView statusText = (TextView) mContentView.findViewById(R.id.status_text);
 		statusText.setText("Sending: " + uri);
 		Log.d(WiFiDirectActivity.TAG, "Intent----------- " + uri);
 		Intent serviceIntent = new Intent(getActivity(), FileTransferService.class);
+
 		serviceIntent.setAction(FileTransferService.ACTION_SEND_FILE);
 		serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_PATH, uri.toString());
+		serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_TYPE, fileType);
 
 		Log.d("LOCAL", localIP);
 
@@ -244,9 +273,18 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 				Log.d(WiFiDirectActivity.TAG, "Server: Socket opened");
 				Socket client = serverSocket.accept();
 				Log.d(WiFiDirectActivity.TAG, "Server: connection done");
+
+				InputStream inputstream = client.getInputStream();
+				BufferedInputStream in = new BufferedInputStream(inputstream);
+				DataInputStream d = new DataInputStream(in);
+				String fileType = d.readUTF();
 				final File f = new File(Environment.getExternalStorageDirectory() + "/"
 						+ context.getPackageName() + "/wifip2pshared-" + System.currentTimeMillis()
-						+ ".jpg");
+						+ fileType);
+				Log.d("FILENAME", fileType);
+
+				Log.d("FILENAME", f.toString());
+
 
 				File dirs = new File(f.getParent());
 				if (!dirs.exists())
@@ -254,8 +292,8 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 				f.createNewFile();
 
 				Log.d(WiFiDirectActivity.TAG, "server: copying files " + f.toString());
-				InputStream inputstream = client.getInputStream();
-				copyFile(inputstream, new FileOutputStream(f));
+
+				copyFile(d, new FileOutputStream(f));
 				serverSocket.close();
 				server_running = false;
 				return f.getAbsolutePath();
@@ -307,6 +345,15 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 			return false;
 		}
 		return true;
+	}
+
+	public static String getMimeType(String url) {
+		String type = null;
+		String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+		if (extension != null) {
+			type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+		}
+		return type;
 	}
 
 }

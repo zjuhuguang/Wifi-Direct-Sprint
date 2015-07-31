@@ -16,6 +16,7 @@
 
 package com.example.android.wifidirect;
 
+import android.app.AlertDialog;
 import android.app.ListFragment;
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -23,7 +24,9 @@ import android.content.DialogInterface;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
+import android.net.wifi.p2p.WifiP2pManager;
 import android.net.wifi.p2p.WifiP2pManager.PeerListListener;
+import android.net.wifi.p2p.WifiP2pManager.Channel;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -35,6 +38,9 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.lang.reflect.Method;
+import android.widget.EditText;
+import android.text.InputType;
 
 /**
  * A ListFragment that displays available peers on discovery and requests the
@@ -45,7 +51,14 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
     private List<WifiP2pDevice> peers = new ArrayList<WifiP2pDevice>();
     ProgressDialog progressDialog = null;
     View mContentView = null;
+    private WifiP2pManager manager;
+    private Channel channel;
     private WifiP2pDevice device;
+
+    public void setManager(WifiP2pManager manager, Channel channel) {
+        this.manager = manager;
+        this.channel = channel;
+    }
 
     @Override
     public void onActivityCreated(Bundle savedInstanceState) {
@@ -144,9 +157,55 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
      * 
      * @param device WifiP2pDevice object
      */
-    public void updateThisDevice(WifiP2pDevice device) {
+    public void updateThisDevice(final WifiP2pDevice device) {
+        Log.d("UPDATED", "updated");
         this.device = device;
         TextView view = (TextView) mContentView.findViewById(R.id.my_name);
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle("Set the Device Name");
+                final EditText input = new EditText(getActivity());
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String NewName = input.getText().toString();
+
+                        try {
+                            Method m = manager.getClass().getMethod(
+                                    "setDeviceName",
+                                    new Class[]{WifiP2pManager.Channel.class, String.class,
+                                            WifiP2pManager.ActionListener.class});
+
+                            m.invoke(manager, channel, NewName, new WifiP2pManager.ActionListener() {
+                                public void onSuccess() {
+                                    //Code for Success in changing name
+                                }
+
+                                public void onFailure(int reason) {
+                                    //Code to be done while name change Fails
+                                }
+                            });
+                        } catch (Exception e) {
+
+                            e.printStackTrace();
+                        }
+
+
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+                builder.show();
+            }
+        });
         view.setText(device.deviceName);
         view = (TextView) mContentView.findViewById(R.id.my_status);
         view.setText(getDeviceStatus(device.status));

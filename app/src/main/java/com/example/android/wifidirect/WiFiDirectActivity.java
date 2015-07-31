@@ -98,10 +98,12 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
      * BroadcastReceiver receiving a state change event.
      */
     public void resetData() {
+        Log.d("RESET", "reset");
         DeviceListFragment fragmentList = (DeviceListFragment) getFragmentManager()
                 .findFragmentById(R.id.frag_list);
         DeviceDetailFragment fragmentDetails = (DeviceDetailFragment) getFragmentManager()
                 .findFragmentById(R.id.frag_detail);
+        fragmentList.setManager(manager, channel);
         if (fragmentList != null) {
             fragmentList.clearPeers();
         }

@@ -2,6 +2,8 @@
 
 package com.example.android.wifidirect;
 
+import java.io.BufferedOutputStream;
+import java.io.DataOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,6 +29,7 @@ public class FileTransferService extends IntentService {
 	public static final String EXTRAS_FILE_PATH = "file_url";
 	public static final String EXTRAS_ADDRESS = "go_host";
 	public static final String EXTRAS_PORT = "go_port";
+	public static final String EXTRAS_FILE_TYPE = "file_type";
 
 	public FileTransferService(String name) {
 		super(name);
@@ -47,6 +50,7 @@ public class FileTransferService extends IntentService {
 		if (intent.getAction().equals(ACTION_SEND_FILE)) {
 			String fileUri = intent.getExtras().getString(EXTRAS_FILE_PATH);
 			String host = intent.getExtras().getString(EXTRAS_ADDRESS);
+			String fileName = intent.getExtras().getString(EXTRAS_FILE_TYPE);
 			Socket socket = new Socket();
 			int port = intent.getExtras().getInt(EXTRAS_PORT);
 
@@ -56,7 +60,10 @@ public class FileTransferService extends IntentService {
 				socket.connect((new InetSocketAddress(host, port)), SOCKET_TIMEOUT);
 
 				Log.d(WiFiDirectActivity.TAG, "Client socket - " + socket.isConnected());
-				OutputStream stream = socket.getOutputStream();
+				//OutputStream stream = socket.getOutputStream();
+				BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream());
+				DataOutputStream stream = new DataOutputStream(out);
+				stream.writeUTF(fileName);
 				ContentResolver cr = context.getContentResolver();
 				InputStream is = null;
 				try {
