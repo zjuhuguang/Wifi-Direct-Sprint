@@ -115,10 +115,45 @@ public class DeviceDetailFragment extends Fragment implements ConnectionInfoList
 					public void onClick(View v) {
 						// Allow user to pick an image from Gallery or other
 						// registered apps
+						/*
 						Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
 						intent.setType("image/*");
 
 						startActivityForResult(intent, CHOOSE_FILE_RESULT_CODE);
+						*/
+
+						String localIP = Utils.getLocalIPAddress();
+						String client_mac_fixed = new String(device.deviceAddress).replace("99", "19");
+						Log.d("DEVICEMAC", device.deviceAddress);
+						Log.d("CLIENTMAC", client_mac_fixed);
+						String clientIP = Utils.getIPFromMac(client_mac_fixed);
+						Uri uri = ((WiFiDirectActivity)getActivity()).getFileUri();
+						ContentResolver cR = getActivity().getContentResolver();
+						MimeTypeMap mime = MimeTypeMap.getSingleton();
+						String fileType = mime.getExtensionFromMimeType(cR.getType(uri));
+
+						Log.d("FILETYPE", fileType + "");
+						TextView statusText = (TextView) mContentView.findViewById(R.id.status_text);
+						statusText.setText("Sending: " + uri);
+						Log.d(WiFiDirectActivity.TAG, "Intent----------- " + uri);
+						Intent serviceIntent = new Intent(getActivity(), FileTransferService.class);
+
+						serviceIntent.setAction(FileTransferService.ACTION_SEND_FILE);
+						serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_PATH, uri.toString());
+						serviceIntent.putExtra(FileTransferService.EXTRAS_FILE_TYPE, fileType);
+
+						Log.d("LOCAL", localIP);
+
+						if(localIP.equals(IP_SERVER)){
+							serviceIntent.putExtra(FileTransferService.EXTRAS_ADDRESS, clientIP);
+						}else{
+							serviceIntent.putExtra(FileTransferService.EXTRAS_ADDRESS, IP_SERVER);
+						}
+
+						serviceIntent.putExtra(FileTransferService.EXTRAS_PORT, PORT);
+						getActivity().startService(serviceIntent);
+
+
 					}
 				});
 

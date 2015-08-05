@@ -41,6 +41,7 @@ import java.util.List;
 import java.lang.reflect.Method;
 import android.widget.EditText;
 import android.text.InputType;
+import android.widget.Toast;
 
 /**
  * A ListFragment that displays available peers on discovery and requests the
@@ -78,6 +79,10 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
      */
     public WifiP2pDevice getDevice() {
         return device;
+    }
+
+    public List<WifiP2pDevice> getPeers() {
+        return peers;
     }
 
     private static String getDeviceStatus(int deviceStatus) {
@@ -125,6 +130,10 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
             super(context, textViewResourceId, objects);
             items = objects;
 
+        }
+
+        public List<WifiP2pDevice> getItems() {
+            return items;
         }
 
         @Override
@@ -193,6 +202,23 @@ public class DeviceListFragment extends ListFragment implements PeerListListener
 
                             e.printStackTrace();
                         }
+                        final DeviceListFragment fragment = (DeviceListFragment) getFragmentManager()
+                                .findFragmentById(R.id.frag_list);
+                        fragment.onInitiateDiscovery();
+                        manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
+
+                            @Override
+                            public void onSuccess() {
+                                Toast.makeText(getActivity(), "Discovery Initiated",
+                                        Toast.LENGTH_SHORT).show();
+                            }
+
+                            @Override
+                            public void onFailure(int reasonCode) {
+                                Toast.makeText(getActivity(), "Discovery Failed : " + reasonCode,
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
 
 
                     }

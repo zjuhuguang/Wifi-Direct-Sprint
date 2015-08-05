@@ -17,11 +17,18 @@
             <!-- Preview: layout=@layout/row_devices -->
         </fragment>
         <fragment
+            class="com.example.android.wifidirect.FileFragment"
+            android:id="@+id/file_list"
+            android:layout_width="match_parent"
+            android:layout_height="100dp">
+        </fragment>
+        <fragment
             class="com.example.android.wifidirect.DeviceDetailFragment"
             android:id="@+id/frag_detail"
             android:layout_width="match_parent"
             android:layout_height="match_parent">
             <!-- Preview: layout=@layout/device_detail -->
         </fragment>
+
     </LinearLayout>
 </LinearLayout>

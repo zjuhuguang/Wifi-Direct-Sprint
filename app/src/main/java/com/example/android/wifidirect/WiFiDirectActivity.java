@@ -17,10 +17,16 @@
 package com.example.android.wifidirect;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Uri;
+import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pManager;
@@ -29,14 +35,21 @@ import android.net.wifi.p2p.WifiP2pManager.Channel;
 import android.net.wifi.p2p.WifiP2pManager.ChannelListener;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.InputType;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.webkit.MimeTypeMap;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.ListAdapter;
 
 import com.example.android.wifidirect.DeviceListFragment.DeviceActionListener;
+
+import java.util.List;
 
 /**
  * An activity that uses WiFi Direct APIs to discover and connect with available
@@ -55,7 +68,12 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
     private final IntentFilter intentFilter = new IntentFilter();
     private Channel channel;
     private BroadcastReceiver receiver = null;
+    ProgressDialog progressDialog = null;
 
+    private Uri fileUri = null;
+
+
+    protected static final int CHOOSE_FILE_RESULT_CODE = 20;
     /**
      * @param isWifiP2pEnabled the isWifiP2pEnabled to set
      */
@@ -127,6 +145,7 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.atn_direct_enable:
+                /*
                 if (manager != null && channel != null) {
 
                     // Since this is the system wireless settings activity, it's
@@ -137,6 +156,11 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
                 } else {
                     Log.e(TAG, "channel or manager is null");
                 }
+                */
+                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                intent.setType("image/*");
+                startActivityForResult(intent, CHOOSE_FILE_RESULT_CODE);
+
                 return true;
 
             case R.id.atn_direct_discover:
@@ -145,23 +169,51 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
                             Toast.LENGTH_SHORT).show();
                     return true;
                 }
-                final DeviceListFragment fragment = (DeviceListFragment) getFragmentManager()
+                findPeers();
+                final DeviceListFragment fragment = (DeviceListFragment) this.getFragmentManager()
                         .findFragmentById(R.id.frag_list);
-                fragment.onInitiateDiscovery();
-                manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
-
+                final DeviceDetailFragment detail = (DeviceDetailFragment) this
+                        .getFragmentManager().findFragmentById(R.id.frag_detail);
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Set the Device Name");
+                final EditText input = new EditText(this);
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
-                    public void onSuccess() {
-                        Toast.makeText(WiFiDirectActivity.this, "Discovery Initiated",
-                                Toast.LENGTH_SHORT).show();
-                    }
+                    public void onClick(DialogInterface dialog, int which) {
+                        //WifiP2pDevice device = manager.
+                        String newName = input.getText().toString();
+                        List<WifiP2pDevice> wifiP2pDeviceList = fragment.getPeers();
+                        for (WifiP2pDevice peer: wifiP2pDeviceList) {
+                            Log.d("DEVICENAME", peer.deviceName);
+                            if (newName.equals(peer.deviceName)) {
+                                Log.d("COMMIT", "GOING");
+                                WifiP2pConfig config = new WifiP2pConfig();
+                                config.deviceAddress = peer.deviceAddress;
+                                config.wps.setup = WpsInfo.PBC;
+                                if (progressDialog != null && progressDialog.isShowing()) {
+                                    progressDialog.dismiss();
+                                }
+                                ((DeviceActionListener) WiFiDirectActivity.this).connect(config);
+                                detail.showDetails(peer);
 
-                    @Override
-                    public void onFailure(int reasonCode) {
-                        Toast.makeText(WiFiDirectActivity.this, "Discovery Failed : " + reasonCode,
-                                Toast.LENGTH_SHORT).show();
+                                break;
+                            }
+                        }
+
+
                     }
                 });
+
+
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+                builder.show();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
@@ -264,5 +316,38 @@ public class WiFiDirectActivity extends Activity implements ChannelListener, Dev
             }
         }
 
+    }
+
+    private void findPeers() {
+        final DeviceListFragment fragment = (DeviceListFragment) getFragmentManager()
+                .findFragmentById(R.id.frag_list);
+        fragment.onInitiateDiscovery();
+        manager.discoverPeers(channel, new WifiP2pManager.ActionListener() {
+
+            @Override
+            public void onSuccess() {
+                Toast.makeText(WiFiDirectActivity.this, "Discovery Initiated",
+                        Toast.LENGTH_SHORT).show();
+            }
+
+            @Override
+            public void onFailure(int reasonCode) {
+                Toast.makeText(WiFiDirectActivity.this, "Discovery Failed : " + reasonCode,
+                        Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (data == null) return;
+        fileUri = data.getData();
+        FileFragment fileFragment = (FileFragment) this.getFragmentManager().findFragmentById(R.id.file_list);
+        fileFragment.updateFile(fileUri.toString());
+
+    }
+
+    public Uri getFileUri() {
+        return fileUri;
     }
 }
